@@ -9,8 +9,9 @@ import { ReceiptData } from '../types/pos';
 import { formatRupiah, getTodayDateString } from '../lib/formatters';
 import { localDb } from '../lib/db';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { ShoppingBag, Search } from 'lucide-react';
+import { ShoppingBag, Search, History } from 'lucide-react';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { SalesHistoryModal } from '../components/pos/SalesHistoryModal';
 
 export const PosPage: React.FC = () => {
   const { activeProducts, loading } = useProducts();
@@ -20,6 +21,7 @@ export const PosPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   const categories = ['Semua', 'Terang Bulan', 'Martabak'];
@@ -122,16 +124,26 @@ export const PosPage: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Cari Terang Bulan atau Martabak..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-white border border-slate-200 pl-10 pr-4 py-2.5 rounded-2xl text-xs sm:text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-        />
+      {/* Search Bar & Riwayat Nota Button */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Cari Terang Bulan atau Martabak..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white border border-slate-200 pl-10 pr-4 py-2.5 rounded-2xl text-xs sm:text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          />
+        </div>
+        <button
+          onClick={() => setIsHistoryOpen(true)}
+          className="flex items-center gap-1.5 bg-white border border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 px-3 py-2.5 rounded-2xl text-xs font-semibold text-slate-700 shadow-xs active:scale-95 transition-all"
+          title="Lihat Riwayat Nota Hari Ini"
+        >
+          <History className="w-4 h-4 text-amber-500" />
+          <span>Riwayat</span>
+        </button>
       </div>
 
       {/* Category Pills */}
@@ -198,6 +210,15 @@ export const PosPage: React.FC = () => {
       <ReceiptModal
         receipt={receipt}
         onClose={() => setReceipt(null)}
+      />
+
+      <SalesHistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        onViewReceipt={(r) => {
+          setIsHistoryOpen(false);
+          setReceipt(r);
+        }}
       />
     </div>
   );
