@@ -7,6 +7,7 @@ import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { Plus, Edit2, Search } from 'lucide-react';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { sortProducts } from '../lib/productSort';
 
 export const ProductsPage: React.FC = () => {
   const { products, loading, saveProduct } = useProducts();
@@ -16,11 +17,13 @@ export const ProductsPage: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const filtered = products.filter(p => {
-    const matchesStatus = selectedStatus === 'all' || p.status === selectedStatus;
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  const filtered = sortProducts(
+    products.filter(p => {
+      const matchesStatus = selectedStatus === 'all' || p.status === selectedStatus;
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+      return matchesStatus && matchesSearch;
+    })
+  );
 
   const handleOpenAdd = () => {
     setEditingProduct(null);

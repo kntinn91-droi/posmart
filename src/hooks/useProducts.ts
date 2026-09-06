@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Product } from '../types/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { localDb } from '../lib/db';
+import { sortProducts } from '../lib/productSort';
 
 export const INITIAL_PRODUCTS: Product[] = [
   { id: 'p1', name: 'Terang Bulan Coklat 10k', category: 'Terang Bulan', selling_price: 10000, hpp_per_pcs: 5740, status: 'aktif', created_at: '', updated_at: '' },
@@ -39,9 +40,10 @@ export function useProducts() {
     setLoading(true);
     try {
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase.from('products').select('*').order('name');
+        const { data, error } = await supabase.from('products').select('*');
         if (!error && data && data.length > 0) {
-          setProducts(data);
+          const sorted = sortProducts(data);
+          setProducts(sorted);
           await localDb.products.bulkPut(data);
           setLoading(false);
           return;
@@ -51,15 +53,15 @@ export function useProducts() {
       // Check IndexedDB
       const cached = await localDb.products.toArray();
       if (cached.length > 0) {
-        setProducts(cached);
+        setProducts(sortProducts(cached));
       } else {
         // Fallback to initial seeds
-        setProducts(INITIAL_PRODUCTS);
+        setProducts(sortProducts(INITIAL_PRODUCTS));
         await localDb.products.bulkPut(INITIAL_PRODUCTS);
       }
     } catch (err) {
       console.warn('Using local initial products', err);
-      setProducts(INITIAL_PRODUCTS);
+      setProducts(sortProducts(INITIAL_PRODUCTS));
     } finally {
       setLoading(false);
     }
@@ -73,7 +75,7 @@ export function useProducts() {
     if (productData.id) {
       // Update
       const updated = { ...productData, updated_at: new Date().toISOString() } as Product;
-      setProducts(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
+      setProducts(prev => sortProducts(prev.map(p => p.id === updated.id ? { ...p, ...updated } : p)));
       await localDb.products.put(updated);
       if (isSupabaseConfigured) {
         await supabase.from('products').update(productData).eq('id', productData.id);
@@ -90,7 +92,7 @@ export function useProducts() {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      setProducts(prev => [...prev, newProd]);
+      setProducts(prev => sortProducts([...prev, newProd]));
       await localDb.products.put(newProd);
       if (isSupabaseConfigured) {
         await supabase.from('products').insert([productData]);

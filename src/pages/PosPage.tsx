@@ -9,9 +9,10 @@ import { ReceiptData } from '../types/pos';
 import { formatRupiah, getTodayDateString } from '../lib/formatters';
 import { localDb } from '../lib/db';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { ShoppingBag, Search, History } from 'lucide-react';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { SalesHistoryModal } from '../components/pos/SalesHistoryModal';
+import { sortProducts, ProductSortOption } from '../lib/productSort';
+import { ShoppingBag, Search, History, ArrowUpDown } from 'lucide-react';
 
 export const PosPage: React.FC = () => {
   const { activeProducts, loading } = useProducts();
@@ -19,6 +20,7 @@ export const PosPage: React.FC = () => {
 
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortBy, setSortBy] = useState<ProductSortOption>('variant_asc');
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
@@ -26,11 +28,14 @@ export const PosPage: React.FC = () => {
 
   const categories = ['Semua', 'Terang Bulan', 'Martabak'];
 
-  const filteredProducts = activeProducts.filter((product) => {
-    const matchesCat = selectedCategory === 'Semua' || product.category === selectedCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
+  const filteredProducts = sortProducts(
+    activeProducts.filter((product) => {
+      const matchesCat = selectedCategory === 'Semua' || product.category === selectedCategory;
+      const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCat && matchesSearch;
+    }),
+    sortBy
+  );
 
   const getProductCartQty = (id: string) => {
     const item = cart.find(c => c.product.id === id);
@@ -146,12 +151,32 @@ export const PosPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Category Pills */}
-      <CategoryFilter
-        categories={categories}
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-      />
+      {/* Category Pills & Sort Selector */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex-1 overflow-hidden">
+          <CategoryFilter
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+          />
+        </div>
+        <div className="relative shrink-0 pb-2">
+          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-full px-2.5 py-1.5 shadow-2xs hover:border-amber-400 transition-colors">
+            <ArrowUpDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as ProductSortOption)}
+              className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer pr-1"
+              title="Urutkan Produk"
+            >
+              <option value="variant_asc">Varian: Murah ke Mahal</option>
+              <option value="price_asc">Harga: Paling Murah</option>
+              <option value="price_desc">Harga: Paling Mahal</option>
+              <option value="name_asc">Nama (A-Z)</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
       {/* Product Grid */}
       <div className="grid grid-cols-2 gap-2.5">
