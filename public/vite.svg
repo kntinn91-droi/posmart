@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <rect width="512" height="512" rx="128" fill="#f59e0b"/>
+  <circle cx="256" cy="256" r="160" fill="#ffffff" opacity="0.2"/>
+  <!-- Chef Hat / Martabak icon symbol -->
+  <path d="M160 340 L352 340 A16 16 0 0 1 368 356 L368 368 A16 16 0 0 1 352 384 L160 384 A16 16 0 0 1 144 368 L144 356 A16 16 0 0 1 160 340 Z" fill="#ffffff"/>
+  <path d="M160 324 L352 324 C352 270 320 230 290 220 C320 180 270 140 256 140 C242 140 192 180 222 220 C192 230 160 270 160 324 Z" fill="#ffffff"/>
+</svg>

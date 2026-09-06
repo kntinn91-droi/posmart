@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded rect -->
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+
+  <!-- Inner circle / plate -->
+  <circle cx="256" cy="256" r="190" fill="#ffffff"/>
+
+  <!-- Martabak Illustration: Half circle folded & cut pattern -->
+  <!-- Warm brown / chocolate martabak base -->
+  <path d="M 120 270 A 136 136 0 0 0 392 270 Z" fill="#92400e"/>
+  <!-- Top folded layer / golden crust -->
+  <ellipse cx="256" cy="268" rx="136" ry="42" fill="#d97706"/>
+  <ellipse cx="256" cy="265" rx="124" ry="34" fill="#fde68a"/>
+  
+  <!-- Toppings: chocolate sprinkles & cheese shavings -->
+  <rect x="175" y="258" width="16" height="5" rx="2.5" transform="rotate(-15 175 258)" fill="#451a03"/>
+  <rect x="220" y="252" width="18" height="5" rx="2.5" transform="rotate(25 220 252)" fill="#451a03"/>
+  <rect x="270" y="260" width="17" height="5" rx="2.5" transform="rotate(-30 270 260)" fill="#451a03"/>
+  <rect x="315" y="255" width="15" height="5" rx="2.5" transform="rotate(10 315 255)" fill="#451a03"/>
+  <rect x="245" y="268" width="16" height="5" rx="2.5" transform="rotate(5 245 268)" fill="#451a03"/>
+  <rect x="195" y="270" width="18" height="5" rx="2.5" transform="rotate(-40 195 270)" fill="#451a03"/>
+  
+  <!-- Cheese shreds -->
+  <path d="M 160 250 Q 170 248 185 254" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M 235 248 Q 250 242 265 248" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M 290 252 Q 305 248 325 256" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" fill="none"/>
+
+  <!-- Crown / POS Cash Register Badge on Top -->
+  <g transform="translate(196, 105)">
+    <rect x="0" y="15" width="120" height="85" rx="14" fill="#1e293b"/>
+    <rect x="15" y="27" width="90" height="35" rx="6" fill="#10b981"/>
+    <!-- Screen text simulation -->
+    <text x="60" y="52" fill="#ffffff" font-size="20" font-family="sans-serif" font-weight="900" text-anchor="middle">POS</text>
+    <!-- Buttons -->
+    <circle cx="32" cy="80" r="5" fill="#94a3b8"/>
+    <circle cx="60" cy="80" r="5" fill="#94a3b8"/>
+    <circle cx="88" cy="80" r="5" fill="#94a3b8"/>
+  </g>
+
+  <!-- Title Ribbon -->
+  <g transform="translate(256, 415)">
+    <rect x="-140" y="-22" width="280" height="44" rx="22" fill="#1e293b"/>
+    <text x="0" y="7" fill="#fbbf24" font-size="22" font-family="sans-serif" font-weight="800" text-anchor="middle">MARTABAK POS</text>
+  </g>
+</svg>
