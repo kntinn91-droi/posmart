@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DailyRecapRow, SystemSettings } from '../types/database';
+import { DailyRecapRow, SystemSettings, UsahaWithdrawal } from '../types/database';
 import { localDb } from '../lib/db';
 import { calculateKantong } from '../lib/calculations';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -41,11 +41,13 @@ export function useDailyRecap() {
       // Compute from local IndexedDB data
       const allSales = await localDb.offlineSales.toArray();
       const allExpenses = await localDb.offlineExpenses.toArray();
+      const allWithdrawals: UsahaWithdrawal[] = await localDb.usahaWithdrawals.toArray();
 
       // Collect all dates
       const dateSet = new Set<string>();
       allSales.forEach(s => dateSet.add(s.transaction_date));
       allExpenses.forEach(e => dateSet.add(e.expense_date));
+      allWithdrawals.forEach(w => dateSet.add(w.withdrawal_date));
 
       // Always include today's date so dashboard always has current data
       dateSet.add(getTodayDateString());
@@ -84,6 +86,7 @@ export function useDailyRecap() {
         const daySales = allSales.filter(s => s.transaction_date === tgl);
         const dayMaterial = allExpenses.filter(e => e.expense_date === tgl && e.type === 'bahan');
         const dayPersonal = allExpenses.filter(e => e.expense_date === tgl && e.type === 'pribadi');
+        const dayWithdrawals = allWithdrawals.filter(w => w.withdrawal_date === tgl);
 
         const total_omzet = daySales.reduce((acc, s) => acc + s.total_omzet, 0);
         const total_hpp = daySales.reduce((acc, s) => acc + s.total_hpp, 0);
@@ -98,8 +101,14 @@ export function useDailyRecap() {
           ...activeSettings
         });
 
-        runModal += calc.kantong1_modal_putar;
-        runUsaha += calc.kantong3_tabungan_usaha;
+        // Penarikan Tabungan Usaha hari ini
+        const totalWdToday = dayWithdrawals.reduce((acc, w) => acc + w.amount, 0);
+        const totalWdToModal = dayWithdrawals
+          .filter(w => w.type === 'tambah_modal')
+          .reduce((acc, w) => acc + w.amount, 0);
+
+        runModal += calc.kantong1_modal_putar + totalWdToModal;
+        runUsaha += calc.kantong3_tabungan_usaha - totalWdToday;
         runPribadi += calc.tabungan_pribadi_hari_ini;
 
         computedRows.push({

@@ -1,13 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDailyRecap } from '../hooks/useDailyRecap';
+import { useUsahaWithdrawal } from '../hooks/useUsahaWithdrawal';
 import { ModeBanner } from '../components/dashboard/ModeBanner';
 import { KantongCard } from '../components/dashboard/KantongCard';
 import { SummaryCards } from '../components/dashboard/SummaryCards';
+import { UsahaWithdrawalModal } from '../components/dashboard/UsahaWithdrawalModal';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { RefreshCw, RotateCcw, User, PiggyBank } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const { todayRow, loading, refreshRecap } = useDailyRecap();
+  const {
+    withdrawals,
+    loading: wdLoading,
+    addWithdrawal,
+    deleteWithdrawal
+  } = useUsahaWithdrawal();
+
+  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
 
   if (loading) {
     return <LoadingSpinner message="Menghitung saldo 3 Kantong..." />;
@@ -18,6 +28,18 @@ export const DashboardPage: React.FC = () => {
   const totalOmzet = todayRow?.total_omzet || 0;
   const totalHpp = todayRow?.total_hpp || 0;
   const pengeluaranPribadi = todayRow?.pengeluaran_pribadi_riil || 0;
+  const saldoTabunganUsaha = todayRow?.saldo_tabungan_usaha || 0;
+
+  const handleAddWithdrawal: typeof addWithdrawal = async (data) => {
+    const result = await addWithdrawal(data);
+    refreshRecap();
+    return result;
+  };
+
+  const handleDeleteWithdrawal = async (id: string) => {
+    await deleteWithdrawal(id);
+    refreshRecap();
+  };
 
   return (
     <div className="space-y-3.5">
@@ -88,7 +110,7 @@ export const DashboardPage: React.FC = () => {
           nomor={3}
           title="Tabungan Usaha"
           subtitle="Keuntungan bersih usaha (Profit - Gaji)"
-          totalSaldo={todayRow?.saldo_tabungan_usaha || 0}
+          totalSaldo={saldoTabunganUsaha}
           todayAddition={todayRow?.kantong3_tabungan_usaha || 0}
           colorScheme="purple"
           icon={PiggyBank}
@@ -96,8 +118,21 @@ export const DashboardPage: React.FC = () => {
             { label: 'Profit Kotor', value: todayRow?.profit_kotor || 0 },
             { label: 'Gaji Pemilik Hari Ini', value: todayRow?.kantong2_gaji_pemilik || 0 }
           ]}
+          onActionClick={() => setShowWithdrawalModal(true)}
+          actionLabel="Gunakan"
         />
       </div>
+
+      {/* Withdrawal Modal */}
+      <UsahaWithdrawalModal
+        isOpen={showWithdrawalModal}
+        onClose={() => setShowWithdrawalModal(false)}
+        currentSaldo={saldoTabunganUsaha}
+        withdrawals={withdrawals}
+        loading={wdLoading}
+        onAdd={handleAddWithdrawal}
+        onDelete={handleDeleteWithdrawal}
+      />
     </div>
   );
 };

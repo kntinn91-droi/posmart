@@ -96,6 +96,17 @@ export interface SystemSettings {
   created_at: string;
 }
 
+export type UsahaWithdrawalType = 'pengeluaran' | 'tambah_modal';
+
+export interface UsahaWithdrawal {
+  id: string;
+  withdrawal_date: string; // YYYY-MM-DD
+  type: UsahaWithdrawalType;
+  description: string;
+  amount: number;
+  created_at: string;
+}
+
 export interface InitialBalances {
   id: string;
   saldo_awal_usaha: number;

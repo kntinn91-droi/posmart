@@ -12,6 +12,8 @@ interface KantongCardProps {
   colorScheme: 'blue' | 'green' | 'purple';
   icon: LucideIcon;
   breakdownNotes?: { label: string; value: number }[];
+  onActionClick?: () => void;
+  actionLabel?: string;
 }
 
 export const KantongCard: React.FC<KantongCardProps> = ({
@@ -22,7 +24,9 @@ export const KantongCard: React.FC<KantongCardProps> = ({
   todayAddition,
   colorScheme,
   icon: Icon,
-  breakdownNotes = []
+  breakdownNotes = [],
+  onActionClick,
+  actionLabel
 }) => {
   const styles = {
     blue: {
@@ -88,6 +92,15 @@ export const KantongCard: React.FC<KantongCardProps> = ({
             </div>
           ))}
         </div>
+      )}
+
+      {onActionClick && (
+        <button
+          onClick={onActionClick}
+          className={`mt-3 w-full py-2 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${styles.badgeBg} border-transparent hover:opacity-80`}
+        >
+          💸 {actionLabel || 'Gunakan'}
+        </button>
       )}
     </Card>
   );
