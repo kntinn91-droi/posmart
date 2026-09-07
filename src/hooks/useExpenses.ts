@@ -116,6 +116,75 @@ export function useExpenses() {
     setLoading(false);
   };
 
+  const updateExpense = async (
+    id: string,
+    type: 'bahan' | 'pribadi',
+    data: {
+      expense_date: string;
+      description: string;
+      category_id: number;
+      amount: number;
+    }
+  ) => {
+    setLoading(true);
+    try {
+      // Update local IndexedDB
+      await localDb.offlineExpenses
+        .where('local_id')
+        .equals(id)
+        .modify({
+          expense_date: data.expense_date,
+          description: data.description,
+          category_id: data.category_id,
+          amount: data.amount,
+        });
+
+      // Update React state
+      if (type === 'bahan') {
+        setMaterialExpenses(prev =>
+          prev.map(e => (e.id === id ? { ...e, ...data } : e))
+        );
+      } else {
+        setPersonalExpenses(prev =>
+          prev.map(e => (e.id === id ? { ...e, ...data } : e))
+        );
+      }
+
+      // Sync to Supabase if configured (best-effort)
+      if (isSupabaseConfigured) {
+        const table = type === 'bahan' ? 'material_expenses' : 'personal_expenses';
+        await supabase.from(table).update(data).eq('id', id);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
+
+  const deleteExpense = async (id: string, type: 'bahan' | 'pribadi') => {
+    setLoading(true);
+    try {
+      // Delete from local IndexedDB
+      await localDb.offlineExpenses.where('local_id').equals(id).delete();
+
+      // Update React state
+      if (type === 'bahan') {
+        setMaterialExpenses(prev => prev.filter(e => e.id !== id));
+      } else {
+        setPersonalExpenses(prev => prev.filter(e => e.id !== id));
+      }
+
+      // Sync to Supabase if configured (best-effort)
+      if (isSupabaseConfigured) {
+        const table = type === 'bahan' ? 'material_expenses' : 'personal_expenses';
+        await supabase.from(table).delete().eq('id', id);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
+
   return {
     categories,
     materialCategories: categories.filter(c => c.type === 'bahan'),
@@ -124,6 +193,8 @@ export function useExpenses() {
     personalExpenses,
     loading,
     addMaterialExpense,
-    addPersonalExpense
+    addPersonalExpense,
+    updateExpense,
+    deleteExpense,
   };
 }

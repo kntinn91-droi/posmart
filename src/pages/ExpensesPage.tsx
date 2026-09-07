@@ -2,9 +2,13 @@ import React, { useState } from 'react';
 import { useExpenses } from '../hooks/useExpenses';
 import { MaterialExpenseForm } from '../components/expenses/MaterialExpenseForm';
 import { PersonalExpenseForm } from '../components/expenses/PersonalExpenseForm';
+import { EditExpenseModal } from '../components/expenses/EditExpenseModal';
 import { formatRupiah, formatDateIndo } from '../lib/formatters';
 import { Card } from '../components/common/Card';
-import { ShoppingCart, UserCheck, CheckCircle2 } from 'lucide-react';
+import { MaterialExpense, PersonalExpense } from '../types/database';
+import { ShoppingCart, UserCheck, CheckCircle2, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+
+type ExpenseWithType = (MaterialExpense | PersonalExpense) & { type: 'bahan' | 'pribadi' };
 
 export const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'bahan' | 'pribadi'>('bahan');
@@ -15,10 +19,24 @@ export const ExpensesPage: React.FC = () => {
     personalExpenses,
     addMaterialExpense,
     addPersonalExpense,
-    loading
+    updateExpense,
+    deleteExpense,
+    loading,
   } = useExpenses();
 
   const [notification, setNotification] = useState<string>('');
+
+  // Edit state
+  const [editingExpense, setEditingExpense] = useState<ExpenseWithType | null>(null);
+
+  // Delete confirmation state
+  const [deletingExpense, setDeletingExpense] = useState<ExpenseWithType | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const showNotification = (msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(''), 3000);
+  };
 
   const handleMaterialSubmit = async (data: {
     expense_date: string;
@@ -27,8 +45,7 @@ export const ExpensesPage: React.FC = () => {
     amount: number;
   }) => {
     await addMaterialExpense(data);
-    setNotification('Belanja bahan berhasil dicatat!');
-    setTimeout(() => setNotification(''), 3000);
+    showNotification('Belanja bahan berhasil dicatat!');
   };
 
   const handlePersonalSubmit = async (data: {
@@ -38,9 +55,34 @@ export const ExpensesPage: React.FC = () => {
     amount: number;
   }) => {
     await addPersonalExpense(data);
-    setNotification('Pengeluaran pribadi berhasil dicatat!');
-    setTimeout(() => setNotification(''), 3000);
+    showNotification('Pengeluaran pribadi berhasil dicatat!');
   };
+
+  const handleEditSave = async (data: {
+    expense_date: string;
+    description: string;
+    category_id: number;
+    amount: number;
+  }) => {
+    if (!editingExpense) return;
+    await updateExpense(editingExpense.id, editingExpense.type, data);
+    showNotification('Pengeluaran berhasil diperbarui!');
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingExpense) return;
+    setDeleteLoading(true);
+    await deleteExpense(deletingExpense.id, deletingExpense.type);
+    setDeleteLoading(false);
+    setDeletingExpense(null);
+    showNotification('Catatan berhasil dihapus.');
+  };
+
+  const activeExpenses: ExpenseWithType[] = (
+    activeTab === 'bahan' ? materialExpenses : personalExpenses
+  ).map(e => ({ ...e, type: activeTab }));
+
+  const activeCategories = activeTab === 'bahan' ? materialCategories : personalCategories;
 
   return (
     <div className="space-y-4">
@@ -100,31 +142,107 @@ export const ExpensesPage: React.FC = () => {
           Riwayat {activeTab === 'bahan' ? 'Belanja Bahan' : 'Pengeluaran Pribadi'} Terkini
         </h4>
 
-        {(activeTab === 'bahan' ? materialExpenses : personalExpenses).length === 0 ? (
+        {activeExpenses.length === 0 ? (
           <div className="p-6 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-100">
             Belum ada catatan tercatat.
           </div>
         ) : (
           <div className="space-y-2">
-            {(activeTab === 'bahan' ? materialExpenses : personalExpenses).map((item) => (
+            {activeExpenses.map((item) => (
               <div
                 key={item.id}
-                className="bg-white p-3 rounded-2xl border border-slate-100 flex items-center justify-between"
+                className="bg-white p-3 rounded-2xl border border-slate-100 flex items-center gap-3"
               >
-                <div>
-                  <p className="text-xs font-bold text-slate-800">{item.description}</p>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-800 truncate">{item.description}</p>
                   <p className="text-[11px] text-slate-400">{formatDateIndo(item.expense_date)}</p>
                 </div>
-                <span className={`text-xs font-black ${
+
+                {/* Amount */}
+                <span className={`text-xs font-black shrink-0 ${
                   activeTab === 'bahan' ? 'text-sky-600' : 'text-rose-600'
                 }`}>
                   {formatRupiah(item.amount)}
                 </span>
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setEditingExpense(item)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDeletingExpense(item)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    title="Hapus"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingExpense && (
+        <EditExpenseModal
+          expense={editingExpense}
+          categories={activeCategories}
+          onSave={handleEditSave}
+          onClose={() => setEditingExpense(null)}
+          isLoading={loading}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deletingExpense && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm p-4 sm:items-center"
+          onClick={(e) => { if (e.target === e.currentTarget) setDeletingExpense(null); }}
+        >
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-rose-100 rounded-xl shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">Hapus Catatan?</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Catatan <span className="font-semibold text-slate-700">"{deletingExpense.description}"</span> sebesar{' '}
+                  <span className="font-semibold text-rose-600">{formatRupiah(deletingExpense.amount)}</span> akan dihapus permanen.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingExpense(null)}
+                disabled={deleteLoading}
+                className="flex-1 py-2.5 text-xs font-bold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleteLoading}
+                className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {deleteLoading ? (
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
