@@ -100,8 +100,8 @@ export const DailyRecapTable: React.FC<DailyRecapTableProps> = ({ data }) => {
                 </div>
 
                 <div className="bg-slate-100 p-2.5 rounded-xl">
-                  <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Saldo Kumulatif Berjalan</p>
-                  <div className="grid grid-cols-3 gap-1 text-[11px]">
+                  <p className="text-[10px] text-slate-400 uppercase font-bold mb-2">Saldo Kumulatif Berjalan</p>
+                  <div className="grid grid-cols-2 gap-1.5 text-[11px]">
                     <div>
                       <span className="text-slate-500">Kas Modal:</span>
                       <p className="font-bold text-sky-700">{formatRupiah(row.saldo_kas_modal_putar)}</p>
@@ -111,8 +111,12 @@ export const DailyRecapTable: React.FC<DailyRecapTableProps> = ({ data }) => {
                       <p className="font-bold text-purple-700">{formatRupiah(row.saldo_tabungan_usaha)}</p>
                     </div>
                     <div>
+                      <span className="text-slate-500">Jatah Hidup:</span>
+                      <p className="font-bold text-emerald-700">{formatRupiah(row.saldo_akumulatif_jatah_hidup)}</p>
+                    </div>
+                    <div>
                       <span className="text-slate-500">Tab. Pribadi:</span>
-                      <p className="font-bold text-emerald-700">{formatRupiah(row.saldo_tabungan_pribadi)}</p>
+                      <p className="font-bold text-amber-700">{formatRupiah(row.saldo_tabungan_pribadi)}</p>
                     </div>
                   </div>
                 </div>

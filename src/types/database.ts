@@ -132,5 +132,6 @@ export interface DailyRecapRow {
   tabungan_pribadi_hari_ini: number;
   saldo_kas_modal_putar: number;
   saldo_tabungan_usaha: number;
+  saldo_akumulatif_jatah_hidup: number;
   saldo_tabungan_pribadi: number;
 }

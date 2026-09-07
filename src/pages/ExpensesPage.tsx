@@ -3,10 +3,11 @@ import { useExpenses } from '../hooks/useExpenses';
 import { MaterialExpenseForm } from '../components/expenses/MaterialExpenseForm';
 import { PersonalExpenseForm } from '../components/expenses/PersonalExpenseForm';
 import { EditExpenseModal } from '../components/expenses/EditExpenseModal';
-import { formatRupiah, formatDateIndo } from '../lib/formatters';
+import { ExpenseHistory } from '../components/expenses/ExpenseHistory';
+import { formatRupiah } from '../lib/formatters';
 import { Card } from '../components/common/Card';
 import { MaterialExpense, PersonalExpense } from '../types/database';
-import { ShoppingCart, UserCheck, CheckCircle2, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, UserCheck, CheckCircle2, Trash2, AlertTriangle } from 'lucide-react';
 
 type ExpenseWithType = (MaterialExpense | PersonalExpense) & { type: 'bahan' | 'pribadi' };
 
@@ -137,57 +138,12 @@ export const ExpensesPage: React.FC = () => {
       </Card>
 
       {/* History Log */}
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold text-slate-700 px-1">
-          Riwayat {activeTab === 'bahan' ? 'Belanja Bahan' : 'Pengeluaran Pribadi'} Terkini
-        </h4>
-
-        {activeExpenses.length === 0 ? (
-          <div className="p-6 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-100">
-            Belum ada catatan tercatat.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {activeExpenses.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white p-3 rounded-2xl border border-slate-100 flex items-center gap-3"
-              >
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-800 truncate">{item.description}</p>
-                  <p className="text-[11px] text-slate-400">{formatDateIndo(item.expense_date)}</p>
-                </div>
-
-                {/* Amount */}
-                <span className={`text-xs font-black shrink-0 ${
-                  activeTab === 'bahan' ? 'text-sky-600' : 'text-rose-600'
-                }`}>
-                  {formatRupiah(item.amount)}
-                </span>
-
-                {/* Action buttons */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => setEditingExpense(item)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-                    title="Edit"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setDeletingExpense(item)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                    title="Hapus"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <ExpenseHistory
+        expenses={activeExpenses}
+        activeTab={activeTab}
+        onEdit={setEditingExpense}
+        onDelete={setDeletingExpense}
+      />
 
       {/* Edit Modal */}
       {editingExpense && (

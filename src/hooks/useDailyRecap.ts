@@ -78,6 +78,7 @@ export function useDailyRecap() {
 
       let runModal = saldoAwalModal;
       let runUsaha = saldoAwalUsaha;
+      let runJatahHidup = 0;
       let runPribadi = saldoAwalPribadi;
 
       const computedRows: DailyRecapRow[] = [];
@@ -109,7 +110,43 @@ export function useDailyRecap() {
 
         runModal += calc.kantong1_modal_putar + totalWdToModal;
         runUsaha += calc.kantong3_tabungan_usaha - totalWdToday;
-        runPribadi += calc.tabungan_pribadi_hari_ini;
+
+        // --- Logika Prioritas Pengeluaran Pribadi ---
+        // Tambahkan jatah hidup hari ini ke akumulatif terlebih dahulu
+        runJatahHidup += calc.jatah_kebutuhan_hidup;
+
+        // Sisa selisih dari calculateKantong hanya berdasarkan hari ini.
+        // Kita perlu recalculate dengan mempertimbangkan akumulatif jatah hidup.
+        const sisa_selisih_jatah_hidup_hari_ini = calc.jatah_kebutuhan_hidup - pengeluaran_pribadi_riil;
+
+        let tabungan_pribadi_hari_ini = calc.jatah_tabungan_pribadi;
+        let sisa_selisih_final = sisa_selisih_jatah_hidup_hari_ini;
+
+        if (sisa_selisih_jatah_hidup_hari_ini >= 0) {
+          // Pengeluaran <= jatah hidup hari ini → sisa masuk akumulatif jatah hidup
+          // runJatahHidup sudah ditambah jatah_hidup di atas, kurangi pengeluaran
+          runJatahHidup -= pengeluaran_pribadi_riil;
+          // Tabungan tidak terpengaruh, sisa jatah hidup masuk akumulatif
+          // tabungan_pribadi_hari_ini tetap = jatah_tabungan_pribadi
+        } else {
+          // Pengeluaran > jatah hidup hari ini → kelebihan ambil dari akumulatif jatah hidup dulu
+          const kelebihan_belanja = -sisa_selisih_jatah_hidup_hari_ini; // positif
+          // runJatahHidup sudah ditambah jatah hidup hari ini. Kurangi semua pengeluaran.
+          runJatahHidup -= pengeluaran_pribadi_riil;
+
+          if (runJatahHidup >= 0) {
+            // Akumulatif jatah hidup masih cukup → tabungan aman
+            sisa_selisih_final = 0; // anggap impas dari sisi tabungan
+          } else {
+            // Akumulatif jatah hidup tidak cukup → sisa defisit potong tabungan
+            const defisit_tabungan = -runJatahHidup; // positif
+            runJatahHidup = 0; // jatah hidup akumulatif sudah habis di 0
+            tabungan_pribadi_hari_ini = calc.jatah_tabungan_pribadi - defisit_tabungan;
+            sisa_selisih_final = -kelebihan_belanja; // tetap negatif untuk display
+          }
+        }
+
+        runPribadi += tabungan_pribadi_hari_ini;
 
         computedRows.push({
           tanggal: tgl,
@@ -124,10 +161,11 @@ export function useDailyRecap() {
           jatah_kebutuhan_hidup: calc.jatah_kebutuhan_hidup,
           jatah_tabungan_pribadi: calc.jatah_tabungan_pribadi,
           pengeluaran_pribadi_riil: calc.pengeluaran_pribadi_riil,
-          sisa_selisih_jatah_hidup: calc.sisa_selisih_jatah_hidup,
-          tabungan_pribadi_hari_ini: calc.tabungan_pribadi_hari_ini,
+          sisa_selisih_jatah_hidup: sisa_selisih_final,
+          tabungan_pribadi_hari_ini,
           saldo_kas_modal_putar: runModal,
           saldo_tabungan_usaha: runUsaha,
+          saldo_akumulatif_jatah_hidup: runJatahHidup,
           saldo_tabungan_pribadi: runPribadi
         });
       }
