@@ -50,3 +50,25 @@ export function getTodayDateString(): string {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Format string YYYY-MM ke nama bulan dan tahun Indonesia (e.g. '2026-09' -> 'September 2026')
+ */
+export function formatMonthYearIndo(monthStr: string): string {
+  if (!monthStr) return '-';
+  const parts = monthStr.split('-');
+  if (parts.length < 2) return monthStr;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const d = new Date(year, month - 1, 1);
+  return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(d);
+}
+
+/**
+ * Dapatkan nama hari format Indonesia (e.g. 'Sabtu')
+ */
+export function getDayNameIndo(dateStr: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(d);
+}

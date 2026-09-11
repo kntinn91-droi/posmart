@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DailyRecapRow, SystemSettings, UsahaWithdrawal } from '../types/database';
+import { DailyRecapRow, SystemSettings, UsahaWithdrawal, PribadiWithdrawal } from '../types/database';
 import { localDb } from '../lib/db';
 import { calculateKantong } from '../lib/calculations';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -42,12 +42,14 @@ export function useDailyRecap() {
       const allSales = await localDb.offlineSales.toArray();
       const allExpenses = await localDb.offlineExpenses.toArray();
       const allWithdrawals: UsahaWithdrawal[] = await localDb.usahaWithdrawals.toArray();
+      const allPribadiWithdrawals: PribadiWithdrawal[] = await localDb.pribadiWithdrawals.toArray();
 
       // Collect all dates
       const dateSet = new Set<string>();
       allSales.forEach(s => dateSet.add(s.transaction_date));
       allExpenses.forEach(e => dateSet.add(e.expense_date));
       allWithdrawals.forEach(w => dateSet.add(w.withdrawal_date));
+      allPribadiWithdrawals.forEach(w => dateSet.add(w.withdrawal_date));
 
       // Always include today's date so dashboard always has current data
       dateSet.add(getTodayDateString());
@@ -88,6 +90,7 @@ export function useDailyRecap() {
         const dayMaterial = allExpenses.filter(e => e.expense_date === tgl && e.type === 'bahan');
         const dayPersonal = allExpenses.filter(e => e.expense_date === tgl && e.type === 'pribadi');
         const dayWithdrawals = allWithdrawals.filter(w => w.withdrawal_date === tgl);
+        const dayPribadiWithdrawals = allPribadiWithdrawals.filter(w => w.withdrawal_date === tgl);
 
         const total_omzet = daySales.reduce((acc, s) => acc + s.total_omzet, 0);
         const total_hpp = daySales.reduce((acc, s) => acc + s.total_hpp, 0);
@@ -111,42 +114,22 @@ export function useDailyRecap() {
         runModal += calc.kantong1_modal_putar + totalWdToModal;
         runUsaha += calc.kantong3_tabungan_usaha - totalWdToday;
 
-        // --- Logika Prioritas Pengeluaran Pribadi ---
-        // Tambahkan jatah hidup hari ini ke akumulatif terlebih dahulu
-        runJatahHidup += calc.jatah_kebutuhan_hidup;
+        // Penarikan Tabungan Pribadi hari ini
+        const totalPribadiWdToday = dayPribadiWithdrawals.reduce((acc, w) => acc + w.amount, 0);
+        const totalWdToJatah = dayPribadiWithdrawals
+          .filter(w => w.type === 'tutup_defisit_jatah')
+          .reduce((acc, w) => acc + w.amount, 0);
 
-        // Sisa selisih dari calculateKantong hanya berdasarkan hari ini.
-        // Kita perlu recalculate dengan mempertimbangkan akumulatif jatah hidup.
+        // --- Logika Prioritas Saldo Kumulatif Jatah Hidup & Tabungan Pribadi ---
+        // Sisa jatah hidup hari ini = jatah kebutuhan hidup - pengeluaran pribadi riil
         const sisa_selisih_jatah_hidup_hari_ini = calc.jatah_kebutuhan_hidup - pengeluaran_pribadi_riil;
 
-        let tabungan_pribadi_hari_ini = calc.jatah_tabungan_pribadi;
-        let sisa_selisih_final = sisa_selisih_jatah_hidup_hari_ini;
+        // Akumulasi saldo berjalan jatah hidup (ditambah pengalihan tabungan pribadi jika ada untuk tutup defisit)
+        runJatahHidup += sisa_selisih_jatah_hidup_hari_ini + totalWdToJatah;
 
-        if (sisa_selisih_jatah_hidup_hari_ini >= 0) {
-          // Pengeluaran <= jatah hidup hari ini → sisa masuk akumulatif jatah hidup
-          // runJatahHidup sudah ditambah jatah_hidup di atas, kurangi pengeluaran
-          runJatahHidup -= pengeluaran_pribadi_riil;
-          // Tabungan tidak terpengaruh, sisa jatah hidup masuk akumulatif
-          // tabungan_pribadi_hari_ini tetap = jatah_tabungan_pribadi
-        } else {
-          // Pengeluaran > jatah hidup hari ini → kelebihan ambil dari akumulatif jatah hidup dulu
-          const kelebihan_belanja = -sisa_selisih_jatah_hidup_hari_ini; // positif
-          // runJatahHidup sudah ditambah jatah hidup hari ini. Kurangi semua pengeluaran.
-          runJatahHidup -= pengeluaran_pribadi_riil;
-
-          if (runJatahHidup >= 0) {
-            // Akumulatif jatah hidup masih cukup → tabungan aman
-            sisa_selisih_final = 0; // anggap impas dari sisi tabungan
-          } else {
-            // Akumulatif jatah hidup tidak cukup → sisa defisit potong tabungan
-            const defisit_tabungan = -runJatahHidup; // positif
-            runJatahHidup = 0; // jatah hidup akumulatif sudah habis di 0
-            tabungan_pribadi_hari_ini = calc.jatah_tabungan_pribadi - defisit_tabungan;
-            sisa_selisih_final = -kelebihan_belanja; // tetap negatif untuk display
-          }
-        }
-
-        runPribadi += tabungan_pribadi_hari_ini;
+        // Tabungan pribadi dikurangi penarikan hari ini
+        const tabungan_pribadi_hari_ini = calc.jatah_tabungan_pribadi;
+        runPribadi += tabungan_pribadi_hari_ini - totalPribadiWdToday;
 
         computedRows.push({
           tanggal: tgl,
@@ -161,7 +144,7 @@ export function useDailyRecap() {
           jatah_kebutuhan_hidup: calc.jatah_kebutuhan_hidup,
           jatah_tabungan_pribadi: calc.jatah_tabungan_pribadi,
           pengeluaran_pribadi_riil: calc.pengeluaran_pribadi_riil,
-          sisa_selisih_jatah_hidup: sisa_selisih_final,
+          sisa_selisih_jatah_hidup: sisa_selisih_jatah_hidup_hari_ini,
           tabungan_pribadi_hari_ini,
           saldo_kas_modal_putar: runModal,
           saldo_tabungan_usaha: runUsaha,

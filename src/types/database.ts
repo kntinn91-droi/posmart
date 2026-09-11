@@ -107,6 +107,17 @@ export interface UsahaWithdrawal {
   created_at: string;
 }
 
+export type PribadiWithdrawalType = 'tarik_tunai' | 'tutup_defisit_jatah';
+
+export interface PribadiWithdrawal {
+  id: string;
+  withdrawal_date: string; // YYYY-MM-DD
+  type: PribadiWithdrawalType;
+  description: string;
+  amount: number;
+  created_at: string;
+}
+
 export interface InitialBalances {
   id: string;
   saldo_awal_usaha: number;

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import { Product, ExpenseCategory, UsahaWithdrawal } from '../types/database';
+import { Product, ExpenseCategory, UsahaWithdrawal, PribadiWithdrawal } from '../types/database';
 
 export interface OfflineSaleTransaction {
   id?: number;
@@ -40,6 +40,7 @@ export class PosDatabase extends Dexie {
   offlineSales!: Table<OfflineSaleTransaction, number>;
   offlineExpenses!: Table<OfflineExpense, number>;
   usahaWithdrawals!: Table<UsahaWithdrawal, string>;
+  pribadiWithdrawals!: Table<PribadiWithdrawal, string>;
 
   constructor() {
     super('PosMartabakDB');
@@ -56,6 +57,15 @@ export class PosDatabase extends Dexie {
       offlineSales: '++id, local_id, transaction_date, synced',
       offlineExpenses: '++id, local_id, expense_date, type, synced',
       usahaWithdrawals: 'id, withdrawal_date, type'
+    });
+    // Version 3 adds pribadiWithdrawals table
+    this.version(3).stores({
+      products: 'id, name, category, status',
+      categories: 'id, type, name',
+      offlineSales: '++id, local_id, transaction_date, synced',
+      offlineExpenses: '++id, local_id, expense_date, type, synced',
+      usahaWithdrawals: 'id, withdrawal_date, type',
+      pribadiWithdrawals: 'id, withdrawal_date, type'
     });
   }
 }

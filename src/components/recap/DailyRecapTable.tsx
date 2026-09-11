@@ -54,31 +54,37 @@ export const DailyRecapTable: React.FC<DailyRecapTableProps> = ({ data }) => {
 
               <div className="flex items-center gap-2">
                 <div className="text-right">
-                  <p className="text-[10px] text-slate-400">Tab. Usaha</p>
-                  <p className="text-xs font-black text-purple-600">
-                    {formatRupiah(row.kantong3_tabungan_usaha)}
+                  <p className="text-[10px] text-slate-400">Jatah Hidup Hari Ini</p>
+                  <p className={`text-xs font-black ${row.sisa_selisih_jatah_hidup < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {formatRupiah(row.sisa_selisih_jatah_hidup)}
                   </p>
                 </div>
                 {isExpanded ? (
-                  <ChevronUp className="w-4 h-4 text-slate-400" />
+                  <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
                 ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                 )}
               </div>
             </div>
 
             {isExpanded && (
               <div className="mt-3 pt-3 border-t border-slate-100 space-y-2 text-xs animate-in slide-in-from-top-1 duration-150">
-                <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl">
+                <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl">
                   <div>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold">Kantong 1 (Modal Putar)</span>
-                    <p className="font-bold text-sky-600">{formatRupiah(row.kantong1_modal_putar)}</p>
-                    <span className="text-[10px] text-slate-400">HPP: {formatRupiah(row.total_hpp)} - Belanja: {formatRupiah(row.total_belanja_bahan)}</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">K1 (Modal)</span>
+                    <p className="font-bold text-sky-600 truncate">{formatRupiah(row.kantong1_modal_putar)}</p>
+                    <span className="text-[9px] text-slate-400 block truncate">HPP: {formatRupiah(row.total_hpp)}</span>
+                    <span className="text-[9px] text-slate-400 block truncate">Blnj: {formatRupiah(row.total_belanja_bahan)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold">Kantong 2 (Gaji Pemilik)</span>
-                    <p className="font-bold text-emerald-600">{formatRupiah(row.kantong2_gaji_pemilik)}</p>
-                    <span className="text-[10px] text-slate-400">Jatah Hidup: {formatRupiah(row.jatah_kebutuhan_hidup)}</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">K2 (Gaji)</span>
+                    <p className="font-bold text-emerald-600 truncate">{formatRupiah(row.kantong2_gaji_pemilik)}</p>
+                    <span className="text-[9px] text-slate-400 block truncate">Jatah: {formatRupiah(row.jatah_kebutuhan_hidup)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">K3 (Tab. Usaha)</span>
+                    <p className="font-bold text-purple-600 truncate">{formatRupiah(row.kantong3_tabungan_usaha)}</p>
+                    <span className="text-[9px] text-slate-400 block truncate">Profit - Gaji</span>
                   </div>
                 </div>
 
@@ -112,12 +118,30 @@ export const DailyRecapTable: React.FC<DailyRecapTableProps> = ({ data }) => {
                     </div>
                     <div>
                       <span className="text-slate-500">Jatah Hidup:</span>
-                      <p className="font-bold text-emerald-700">{formatRupiah(row.saldo_akumulatif_jatah_hidup)}</p>
+                      <p className={`font-bold ${row.saldo_akumulatif_jatah_hidup < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                        {formatRupiah(row.saldo_akumulatif_jatah_hidup)}
+                      </p>
                     </div>
                     <div>
                       <span className="text-slate-500">Tab. Pribadi:</span>
                       <p className="font-bold text-amber-700">{formatRupiah(row.saldo_tabungan_pribadi)}</p>
                     </div>
+                  </div>
+
+                  {/* Total Semua Uang / Total Kas Fisik */}
+                  <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-700">Total Kas Fisik</span>
+                      <span className="text-[9px] text-slate-400 block">Total 4 saldo kantong</span>
+                    </div>
+                    <span className="text-xs font-black text-slate-900">
+                      {formatRupiah(
+                        row.saldo_kas_modal_putar +
+                        row.saldo_tabungan_usaha +
+                        row.saldo_akumulatif_jatah_hidup +
+                        row.saldo_tabungan_pribadi
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>

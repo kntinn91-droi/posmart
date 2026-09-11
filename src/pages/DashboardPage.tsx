@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useDailyRecap } from '../hooks/useDailyRecap';
 import { useUsahaWithdrawal } from '../hooks/useUsahaWithdrawal';
+import { usePribadiWithdrawal } from '../hooks/usePribadiWithdrawal';
 import { ModeBanner } from '../components/dashboard/ModeBanner';
 import { KantongCard } from '../components/dashboard/KantongCard';
 import { SummaryCards } from '../components/dashboard/SummaryCards';
 import { UsahaWithdrawalModal } from '../components/dashboard/UsahaWithdrawalModal';
+import { PribadiWithdrawalModal } from '../components/dashboard/PribadiWithdrawalModal';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
-import { RefreshCw, RotateCcw, User, PiggyBank } from 'lucide-react';
+import { formatRupiah } from '../lib/formatters';
+import { RefreshCw, RotateCcw, User, PiggyBank, Coins } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const { todayRow, loading, refreshRecap } = useDailyRecap();
@@ -16,8 +19,15 @@ export const DashboardPage: React.FC = () => {
     addWithdrawal,
     deleteWithdrawal
   } = useUsahaWithdrawal();
+  const {
+    withdrawals: pribadiWithdrawals,
+    loading: pribadiWdLoading,
+    addWithdrawal: addPribadiWithdrawal,
+    deleteWithdrawal: deletePribadiWithdrawal
+  } = usePribadiWithdrawal();
 
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [showPribadiWithdrawalModal, setShowPribadiWithdrawalModal] = useState(false);
 
   if (loading) {
     return <LoadingSpinner message="Menghitung saldo 3 Kantong..." />;
@@ -29,6 +39,10 @@ export const DashboardPage: React.FC = () => {
   const totalHpp = todayRow?.total_hpp || 0;
   const pengeluaranPribadi = todayRow?.pengeluaran_pribadi_riil || 0;
   const saldoTabunganUsaha = todayRow?.saldo_tabungan_usaha || 0;
+  const saldoKasModal = todayRow?.saldo_kas_modal_putar || 0;
+  const saldoJatahHidup = todayRow?.saldo_akumulatif_jatah_hidup || 0;
+  const saldoTabunganPribadi = todayRow?.saldo_tabungan_pribadi || 0;
+  const totalKasFisik = saldoKasModal + saldoTabunganUsaha + saldoJatahHidup + saldoTabunganPribadi;
 
   const handleAddWithdrawal: typeof addWithdrawal = async (data) => {
     const result = await addWithdrawal(data);
@@ -38,6 +52,17 @@ export const DashboardPage: React.FC = () => {
 
   const handleDeleteWithdrawal = async (id: string) => {
     await deleteWithdrawal(id);
+    refreshRecap();
+  };
+
+  const handleAddPribadiWithdrawal: typeof addPribadiWithdrawal = async (data) => {
+    const result = await addPribadiWithdrawal(data);
+    refreshRecap();
+    return result;
+  };
+
+  const handleDeletePribadiWithdrawal = async (id: string) => {
+    await deletePribadiWithdrawal(id);
     refreshRecap();
   };
 
@@ -71,6 +96,29 @@ export const DashboardPage: React.FC = () => {
         pengeluaranPribadi={pengeluaranPribadi}
       />
 
+      {/* Total Kas Fisik (Semua Kantong) */}
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-3 rounded-2xl shadow-sm flex items-center justify-between border border-slate-700/50">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">
+            <Coins className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wide">
+              Total Kas Fisik (Semua Kantong)
+            </span>
+            <p className="text-[10px] text-slate-400">
+              Kas Modal + Tab. Usaha + Jatah Hidup + Tab. Pribadi
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs sm:text-sm font-black text-amber-400">
+            {formatRupiah(totalKasFisik)}
+          </p>
+          <span className="text-[9px] text-slate-400 block">Uang riil kasir / tangan</span>
+        </div>
+      </div>
+
       {/* 3 Kantong Detailed Cards */}
       <div className="space-y-3 pt-1">
         {/* Kantong 1: Modal Putar */}
@@ -103,6 +151,8 @@ export const DashboardPage: React.FC = () => {
             { label: 'Jatah Tabungan Pribadi', value: todayRow?.jatah_tabungan_pribadi || 0 },
             { label: 'Sisa/Selisih Jatah Hidup', value: todayRow?.sisa_selisih_jatah_hidup || 0 },
           ]}
+          onActionClick={() => setShowPribadiWithdrawalModal(true)}
+          actionLabel="Gunakan"
         />
 
         {/* Kantong 3: Tabungan Usaha */}
@@ -123,7 +173,7 @@ export const DashboardPage: React.FC = () => {
         />
       </div>
 
-      {/* Withdrawal Modal */}
+      {/* Usaha Withdrawal Modal */}
       <UsahaWithdrawalModal
         isOpen={showWithdrawalModal}
         onClose={() => setShowWithdrawalModal(false)}
@@ -132,6 +182,18 @@ export const DashboardPage: React.FC = () => {
         loading={wdLoading}
         onAdd={handleAddWithdrawal}
         onDelete={handleDeleteWithdrawal}
+      />
+
+      {/* Pribadi Withdrawal Modal */}
+      <PribadiWithdrawalModal
+        isOpen={showPribadiWithdrawalModal}
+        onClose={() => setShowPribadiWithdrawalModal(false)}
+        currentSaldo={saldoTabunganPribadi}
+        currentSaldoJatah={saldoJatahHidup}
+        withdrawals={pribadiWithdrawals}
+        loading={pribadiWdLoading}
+        onAdd={handleAddPribadiWithdrawal}
+        onDelete={handleDeletePribadiWithdrawal}
       />
     </div>
   );
