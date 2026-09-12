@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { DailyRecapRow } from '../../types/database';
-import { formatRupiah, formatMonthYearIndo, getDayNameIndo } from '../../lib/formatters';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { DailyRecapRow, Product } from '../../types/database';
+import { formatRupiah, formatMonthYearIndo, getDayNameIndo, getTodayDateString } from '../../lib/formatters';
+import { localDb, OfflineSaleTransaction } from '../../lib/db';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import {
@@ -11,8 +12,53 @@ import {
   User,
   RotateCcw,
   Sparkles,
-  BarChart3
+  BarChart3,
+  ShoppingBag,
+  Trophy,
+  ChevronDown,
+  ChevronUp,
+  ArrowUpDown
 } from 'lucide-react';
+
+type ProductSortOption = 'qty_desc' | 'qty_asc' | 'omzet_desc' | 'name_asc';
+type CategoryFilterOption = 'Semua' | 'Terang Bulan' | 'Martabak';
+
+interface SoldItemSummary {
+  name: string;
+  category: 'Terang Bulan' | 'Martabak' | 'Lainnya';
+  qty: number;
+  omzet: number;
+}
+
+interface PeriodSalesStats {
+  tbQty: number;
+  tbOmzet: number;
+  martabakQty: number;
+  martabakOmzet: number;
+  totalQty: number;
+  totalOmzet: number;
+  items: SoldItemSummary[];
+}
+
+function resolveCategory(
+  productId: string,
+  productName: string,
+  catMap: Map<string, string>
+): 'Terang Bulan' | 'Martabak' | 'Lainnya' {
+  const cat = catMap.get(productId);
+  if (cat) {
+    if (cat.toLowerCase().includes('terang bulan')) return 'Terang Bulan';
+    if (cat.toLowerCase().includes('martabak')) return 'Martabak';
+  }
+  const name = productName.toLowerCase();
+  if (name.includes('terang bulan') || name.includes('terang-bulan') || name.includes('tb ') || name.includes('manis')) {
+    return 'Terang Bulan';
+  }
+  if (name.includes('martabak') || name.includes('telur')) {
+    return 'Martabak';
+  }
+  return 'Lainnya';
+}
 
 interface MonthlyRecapViewProps {
   data: DailyRecapRow[];
@@ -31,8 +77,19 @@ export const MonthlyRecapView: React.FC<MonthlyRecapViewProps> = ({ data }) => {
   }, [data]);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    return availableMonths[0] || '';
+    const todayMonth = getTodayDateString().substring(0, 7);
+    if (availableMonths.includes(todayMonth)) {
+      return todayMonth;
+    }
+    return availableMonths[0] || todayMonth;
   });
+
+  useEffect(() => {
+    if (!selectedMonth && availableMonths.length > 0) {
+      const todayMonth = getTodayDateString().substring(0, 7);
+      setSelectedMonth(availableMonths.includes(todayMonth) ? todayMonth : availableMonths[0]);
+    }
+  }, [availableMonths, selectedMonth]);
 
   // Filter baris untuk bulan yang dipilih (diurutkan kronologis ascending untuk grafik)
   const monthRows = useMemo(() => {
@@ -42,8 +99,46 @@ export const MonthlyRecapView: React.FC<MonthlyRecapViewProps> = ({ data }) => {
       .sort((a, b) => a.tanggal.localeCompare(b.tanggal));
   }, [data, selectedMonth]);
 
-  // Tanggal yang sedang dipilih/diklik di grafik (default hari terakhir atau peak)
+  // Tanggal yang sedang dipilih/diklik di grafik (default hari ini saat membuka rekap)
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Data transaksi penjualan offline untuk rincian produk/kategori
+  const [salesTransactions, setSalesTransactions] = useState<OfflineSaleTransaction[]>([]);
+  const [productCategoryMap, setProductCategoryMap] = useState<Map<string, string>>(new Map());
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+
+  // Kontrol sorting & filter kategori untuk daftar penjualan menu sebulan
+  const [productSortBy, setProductSortBy] = useState<ProductSortOption>('qty_desc');
+  const [productCatFilter, setProductCatFilter] = useState<CategoryFilterOption>('Semua');
+
+  // Kontrol buka-tutup rincian menu agar tidak makan tempat (default tertutup)
+  const [showDayItemDetails, setShowDayItemDetails] = useState(false);
+  const [showMonthRanking, setShowMonthRanking] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadSales = async () => {
+      try {
+        const [sales, products] = await Promise.all([
+          localDb.offlineSales.toArray(),
+          localDb.products.toArray(),
+        ]);
+        if (isMounted) {
+          setSalesTransactions(sales);
+          setAllProducts(products);
+          const map = new Map<string, string>();
+          products.forEach(p => map.set(p.id, p.category));
+          setProductCategoryMap(map);
+        }
+      } catch (err) {
+        console.error('Failed to load sales data for recap:', err);
+      }
+    };
+    loadSales();
+    return () => {
+      isMounted = false;
+    };
+  }, [data]);
 
   // 2. Agregasi total bulanan
   const monthlyStats = useMemo(() => {
@@ -154,13 +249,174 @@ export const MonthlyRecapView: React.FC<MonthlyRecapViewProps> = ({ data }) => {
     return max > 0 ? max : 1;
   }, [monthRows]);
 
-  // Baris yang dipilih untuk detail
+  // Baris yang dipilih untuk detail (default hari ini saat buka rekap)
   const activeSelectedRow = useMemo(() => {
-    if (!selectedDate && monthlyStats) {
-      return monthlyStats.peakRow;
+    if (selectedDate) {
+      const found = monthRows.find(r => r.tanggal === selectedDate);
+      if (found) return found;
     }
-    return monthRows.find(r => r.tanggal === selectedDate) || monthRows[0] || null;
-  }, [selectedDate, monthRows, monthlyStats]);
+
+    // Default hari ini ketika pertama kali membuka rekap
+    const today = getTodayDateString();
+    const todayRow = monthRows.find(r => r.tanggal === today);
+    if (todayRow) {
+      return todayRow;
+    }
+
+    // Jika hari ini tidak ada di bulan ini (misal melihat riwayat bulan lalu),
+    // default ke hari terakhir di bulan tersebut
+    return monthRows[monthRows.length - 1] || null;
+  }, [selectedDate, monthRows]);
+
+  const selectedBarRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll grafik horizontal ke batang yang sedang aktif/terpilih
+  useEffect(() => {
+    if (selectedBarRef.current) {
+      selectedBarRef.current.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }
+  }, [activeSelectedRow?.tanggal]);
+
+  // Statistik produk terjual pada hari yang dipilih
+  const daySalesStats = useMemo<PeriodSalesStats>(() => {
+    if (!activeSelectedRow) {
+      return { tbQty: 0, tbOmzet: 0, martabakQty: 0, martabakOmzet: 0, totalQty: 0, totalOmzet: 0, items: [] };
+    }
+    const dayTrx = salesTransactions.filter(t => t.transaction_date === activeSelectedRow.tanggal);
+    const itemMap = new Map<string, SoldItemSummary>();
+    let tbQty = 0;
+    let tbOmzet = 0;
+    let martabakQty = 0;
+    let martabakOmzet = 0;
+
+    dayTrx.forEach(trx => {
+      trx.items.forEach(item => {
+        const cat = resolveCategory(item.product_id, item.product_name, productCategoryMap);
+        const qty = item.qty || 0;
+        const omzet = item.subtotal_omzet || (item.unit_price * qty) || 0;
+
+        if (cat === 'Terang Bulan') {
+          tbQty += qty;
+          tbOmzet += omzet;
+        } else if (cat === 'Martabak') {
+          martabakQty += qty;
+          martabakOmzet += omzet;
+        }
+
+        const existing = itemMap.get(item.product_name);
+        if (existing) {
+          existing.qty += qty;
+          existing.omzet += omzet;
+        } else {
+          itemMap.set(item.product_name, {
+            name: item.product_name,
+            category: cat,
+            qty,
+            omzet,
+          });
+        }
+      });
+    });
+
+    const items = Array.from(itemMap.values()).sort((a, b) => b.qty - a.qty);
+    const totalQty = tbQty + martabakQty;
+    const totalOmzet = tbOmzet + martabakOmzet;
+
+    return { tbQty, tbOmzet, martabakQty, martabakOmzet, totalQty, totalOmzet, items };
+  }, [salesTransactions, activeSelectedRow, productCategoryMap]);
+
+  // Statistik produk terjual sebulan penuh (seluruh menu terdaftar termasuk 0 penjualan)
+  const monthSalesStats = useMemo(() => {
+    if (!selectedMonth) {
+      return { tbQty: 0, tbOmzet: 0, martabakQty: 0, martabakOmzet: 0, totalQty: 0, totalOmzet: 0, allItems: [] as SoldItemSummary[] };
+    }
+    const monthTrx = salesTransactions.filter(t => t.transaction_date.startsWith(selectedMonth));
+    const itemMap = new Map<string, SoldItemSummary>();
+    let tbQty = 0;
+    let tbOmzet = 0;
+    let martabakQty = 0;
+    let martabakOmzet = 0;
+
+    // 1. Masukkan semua produk master yang aktif agar yang 0 pcs penjualan tetap terdata
+    allProducts
+      .filter(p => p.status !== 'nonaktif')
+      .forEach(p => {
+        const cat = resolveCategory(p.id, p.name, productCategoryMap);
+        itemMap.set(p.name, {
+          name: p.name,
+          category: cat,
+          qty: 0,
+          omzet: 0,
+        });
+      });
+
+    // 2. Akumulasi dari transaksi penjualan bulan ini
+    monthTrx.forEach(trx => {
+      trx.items.forEach(item => {
+        const cat = resolveCategory(item.product_id, item.product_name, productCategoryMap);
+        const qty = item.qty || 0;
+        const omzet = item.subtotal_omzet || (item.unit_price * qty) || 0;
+
+        if (cat === 'Terang Bulan') {
+          tbQty += qty;
+          tbOmzet += omzet;
+        } else if (cat === 'Martabak') {
+          martabakQty += qty;
+          martabakOmzet += omzet;
+        }
+
+        const existing = itemMap.get(item.product_name);
+        if (existing) {
+          existing.qty += qty;
+          existing.omzet += omzet;
+        } else {
+          itemMap.set(item.product_name, {
+            name: item.product_name,
+            category: cat,
+            qty,
+            omzet,
+          });
+        }
+      });
+    });
+
+    const allItems = Array.from(itemMap.values());
+    const totalQty = tbQty + martabakQty;
+    const totalOmzet = tbOmzet + martabakOmzet;
+
+    return { tbQty, tbOmzet, martabakQty, martabakOmzet, totalQty, totalOmzet, allItems };
+  }, [salesTransactions, selectedMonth, allProducts, productCategoryMap]);
+
+  // Daftar menu yang difilter dan di-sort sesuai pilihan user
+  const processedMonthItems = useMemo(() => {
+    let list = [...monthSalesStats.allItems];
+
+    if (productCatFilter !== 'Semua') {
+      list = list.filter(it => it.category === productCatFilter);
+    }
+
+    list.sort((a, b) => {
+      if (productSortBy === 'qty_desc') {
+        return b.qty - a.qty || b.omzet - a.omzet || a.name.localeCompare(b.name);
+      }
+      if (productSortBy === 'qty_asc') {
+        return a.qty - b.qty || a.omzet - b.omzet || a.name.localeCompare(b.name);
+      }
+      if (productSortBy === 'omzet_desc') {
+        return b.omzet - a.omzet || b.qty - a.qty || a.name.localeCompare(b.name);
+      }
+      if (productSortBy === 'name_asc') {
+        return a.name.localeCompare(b.name);
+      }
+      return 0;
+    });
+
+    return list;
+  }, [monthSalesStats.allItems, productCatFilter, productSortBy]);
 
   if (!monthlyStats || monthRows.length === 0) {
     return (
@@ -277,6 +533,7 @@ export const MonthlyRecapView: React.FC<MonthlyRecapViewProps> = ({ data }) => {
               return (
                 <div
                   key={row.tanggal}
+                  ref={isSelected ? selectedBarRef : undefined}
                   onClick={() => setSelectedDate(row.tanggal)}
                   className="flex flex-col items-center cursor-pointer group transition-all"
                   style={{ width: '28px' }}
@@ -296,7 +553,9 @@ export const MonthlyRecapView: React.FC<MonthlyRecapViewProps> = ({ data }) => {
                       style={{ height: `${heightPct}%` }}
                       className={`w-full rounded-t-lg transition-all duration-300 relative ${
                         isPeak
-                          ? 'bg-gradient-to-t from-amber-500 to-amber-400 shadow-md ring-2 ring-amber-400/60'
+                          ? isSelected
+                            ? 'bg-gradient-to-t from-amber-500 to-amber-400 shadow-md ring-2 ring-slate-800'
+                            : 'bg-gradient-to-t from-amber-500 to-amber-400 shadow-md ring-2 ring-amber-400/60'
                           : isSelected
                             ? 'bg-sky-600 ring-2 ring-slate-800'
                             : 'bg-sky-400 group-hover:bg-sky-500 opacity-90'
@@ -362,6 +621,68 @@ export const MonthlyRecapView: React.FC<MonthlyRecapViewProps> = ({ data }) => {
               </div>
             </div>
 
+            {/* Ringkasan Pcs Terjual Hari Ini */}
+            <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 mt-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
+                  <ShoppingBag className="w-3 h-3 text-amber-500" />
+                  Produk Terjual Hari Ini
+                </span>
+                <span className="text-xs font-black text-slate-800">
+                  Total: {daySalesStats.totalQty} pcs
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-amber-50/70 border border-amber-100/80 rounded-lg p-2 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-amber-700 font-semibold block">🥞 Terang Bulan</span>
+                    <span className="text-xs font-black text-amber-900">{daySalesStats.tbQty} pcs</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-amber-700">{formatRupiah(daySalesStats.tbOmzet)}</span>
+                </div>
+                <div className="bg-emerald-50/70 border border-emerald-100/80 rounded-lg p-2 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-emerald-700 font-semibold block">🥩 Martabak</span>
+                    <span className="text-xs font-black text-emerald-900">{daySalesStats.martabakQty} pcs</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-700">{formatRupiah(daySalesStats.martabakOmzet)}</span>
+                </div>
+              </div>
+
+              {/* Toggle Rincian Menu Hari Ini (Default Tertutup) */}
+              {daySalesStats.items.length > 0 && (
+                <div className="mt-2 pt-1 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowDayItemDetails(!showDayItemDetails)}
+                    className="w-full py-1.5 px-2 text-[11px] font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-lg flex items-center justify-between transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {showDayItemDetails ? 'Sembunyikan Rincian Menu' : `Lihat Rincian Menu Terjual (${daySalesStats.items.length} menu)`}
+                    </span>
+                    {showDayItemDetails ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
+                  </button>
+
+                  {showDayItemDetails && (
+                    <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1 animate-in fade-in duration-150">
+                      {daySalesStats.items.map((it, idx) => (
+                        <div key={idx} className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-slate-50/80 text-[11px]">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="text-[10px]">{it.category === 'Terang Bulan' ? '🥞' : '🥩'}</span>
+                            <span className="font-semibold text-slate-700 truncate">{it.name}</span>
+                          </div>
+                          <div className="text-right shrink-0 ml-2">
+                            <span className="font-black text-slate-800">{it.qty} pcs</span>
+                            <span className="text-[10px] text-slate-400 ml-1.5">({formatRupiah(it.omzet)})</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Pembagian 3 Kantong Hari Ini */}
             <div className="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-xl border border-slate-200/60 mt-2">
               <div>
@@ -423,6 +744,188 @@ export const MonthlyRecapView: React.FC<MonthlyRecapViewProps> = ({ data }) => {
               </div>
             </div>
           </div>
+        )}
+      </Card>
+
+      {/* 🥞🥩 Performa Penjualan Produk & Menu Terlaris Bulanan (Gabungan 2 & 3) */}
+      <Card className="p-3.5 border border-slate-200/80 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-amber-500" />
+            <h3 className="text-xs font-bold text-slate-800">
+              Performa Produk & Menu Terlaris ({formatMonthYearIndo(selectedMonth)})
+            </h3>
+          </div>
+          <Badge variant="neutral" size="sm">
+            Total {monthSalesStats.totalQty} pcs
+          </Badge>
+        </div>
+
+        {/* Akumulasi 2 Kategori Utama Sebulan */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-amber-50/80 border border-amber-200/70 rounded-xl p-2.5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold text-amber-800 uppercase flex items-center gap-1">
+                🥞 Terang Bulan
+              </span>
+              <span className="text-[10px] font-bold text-amber-700">
+                {monthSalesStats.totalQty > 0 ? Math.round((monthSalesStats.tbQty / monthSalesStats.totalQty) * 100) : 0}%
+              </span>
+            </div>
+            <p className="text-base font-black text-amber-900">
+              {monthSalesStats.tbQty} <span className="text-xs font-semibold">pcs</span>
+            </p>
+            <p className="text-[11px] font-bold text-amber-700/90 mt-0.5">{formatRupiah(monthSalesStats.tbOmzet)}</p>
+          </div>
+
+          <div className="bg-emerald-50/80 border border-emerald-200/70 rounded-xl p-2.5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold text-emerald-800 uppercase flex items-center gap-1">
+                🥩 Martabak
+              </span>
+              <span className="text-[10px] font-bold text-emerald-700">
+                {monthSalesStats.totalQty > 0 ? Math.round((monthSalesStats.martabakQty / monthSalesStats.totalQty) * 100) : 0}%
+              </span>
+            </div>
+            <p className="text-base font-black text-emerald-900">
+              {monthSalesStats.martabakQty} <span className="text-xs font-semibold">pcs</span>
+            </p>
+            <p className="text-[11px] font-bold text-emerald-700/90 mt-0.5">{formatRupiah(monthSalesStats.martabakOmzet)}</p>
+          </div>
+        </div>
+
+        {/* Accordion Menu Lengkap & Sorting (Default Tertutup agar tidak makan tempat) */}
+        {monthSalesStats.allItems.length > 0 ? (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowMonthRanking(!showMonthRanking)}
+              className="w-full py-2 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200/70 rounded-xl flex items-center justify-between text-xs font-bold text-slate-700 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-amber-500">📋</span>
+                {showMonthRanking
+                  ? 'Sembunyikan Rincian Penjualan Menu'
+                  : `Lihat Penjualan Semua Menu (${monthSalesStats.allItems.length} menu)`}
+              </span>
+              {showMonthRanking ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </button>
+
+            {showMonthRanking && (
+              <div className="mt-2.5 space-y-2.5 pt-1 animate-in fade-in duration-200">
+                {/* Toolbar Filter Kategori & Sorting */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-slate-100/70 p-2 rounded-xl">
+                  {/* Category Pills */}
+                  <div className="flex items-center gap-1">
+                    {(['Semua', 'Terang Bulan', 'Martabak'] as CategoryFilterOption[]).map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setProductCatFilter(cat)}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                          productCatFilter === cat
+                            ? 'bg-amber-500 text-white shadow-xs'
+                            : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/60'
+                        }`}
+                      >
+                        {cat === 'Terang Bulan' ? '🥞 Terang Bulan' : cat === 'Martabak' ? '🥩 Martabak' : 'Semua Menu'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Sort Selector */}
+                  <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                    <select
+                      value={productSortBy}
+                      onChange={e => setProductSortBy(e.target.value as ProductSortOption)}
+                      className="text-[11px] font-bold text-slate-800 bg-white border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+                    >
+                      <option value="qty_desc">Terlaris (Pcs Terbanyak ↓)</option>
+                      <option value="qty_asc">Tersedikit (Pcs Terendah ↑)</option>
+                      <option value="omzet_desc">Omzet Tertinggi (Rp ↓)</option>
+                      <option value="name_asc">Nama Menu (A - Z)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* List of items */}
+                <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
+                  {processedMonthItems.length === 0 ? (
+                    <p className="text-center text-[11px] text-slate-400 py-3">Tidak ada produk dalam kategori ini.</p>
+                  ) : (
+                    processedMonthItems.map((item, index) => {
+                      const maxQty = Math.max(...processedMonthItems.map(i => i.qty), 1);
+                      const barWidth = item.qty > 0 ? Math.max(6, Math.round((item.qty / maxQty) * 100)) : 0;
+                      const isTop3 = productSortBy === 'qty_desc' && index < 3 && item.qty > 0;
+                      const rankBadge = isTop3
+                        ? (index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉')
+                        : `#${index + 1}`;
+
+                      return (
+                        <div
+                          key={item.name}
+                          className={`p-2 rounded-xl border transition-all ${
+                            item.qty === 0
+                              ? 'bg-slate-50/60 border-slate-200/50'
+                              : 'bg-white border-slate-200/80 shadow-2xs'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="text-[11px] font-bold text-slate-400 w-5 shrink-0 text-center">
+                                {rankBadge}
+                              </span>
+                              <span className="text-[11px] shrink-0">
+                                {item.category === 'Terang Bulan' ? '🥞' : '🥩'}
+                              </span>
+                              <span
+                                className={`truncate ${
+                                  isTop3
+                                    ? 'text-slate-900 font-extrabold'
+                                    : item.qty === 0
+                                      ? 'text-slate-500 font-medium'
+                                      : 'text-slate-800 font-semibold'
+                                }`}
+                              >
+                                {item.name}
+                              </span>
+                            </div>
+                            <div className="text-right shrink-0 ml-2">
+                              <span className={`font-black ${item.qty === 0 ? 'text-slate-400 font-semibold' : 'text-slate-900'}`}>
+                                {item.qty} pcs
+                              </span>
+                              <span className="text-[10px] text-slate-400 ml-1.5">
+                                ({formatRupiah(item.omzet)})
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Progress bar visual untuk yang ada penjualan */}
+                          {item.qty > 0 && (
+                            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden mt-1.5">
+                              <div
+                                style={{ width: `${barWidth}%` }}
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  isTop3 && index === 0
+                                    ? 'bg-amber-500'
+                                    : item.category === 'Terang Bulan'
+                                      ? 'bg-amber-400'
+                                      : 'bg-emerald-500'
+                                }`}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-[11px] text-slate-400 text-center py-1">Belum ada data menu di bulan ini.</p>
         )}
       </Card>
 
