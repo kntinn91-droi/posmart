@@ -86,7 +86,7 @@ export const DashboardPage: React.FC = () => {
       <ModeBanner
         mode={currentMode}
         profitKotor={profitKotor}
-        ambangRamai={200000}
+        ambangRamai={parseFloat(localStorage.getItem('cfg_ambang_ramai') || '200000')}
       />
 
       {/* Top 3 Summary Cards */}

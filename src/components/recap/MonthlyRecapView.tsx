@@ -237,9 +237,9 @@ export const MonthlyRecapView: React.FC<MonthlyRecapViewProps> = ({ data }) => {
     });
   }, [monthRows]);
 
-  const maxAvgDay = useMemo(() => {
+  const maxTotalDay = useMemo(() => {
     if (dayOfWeekStats.length === 0) return null;
-    return [...dayOfWeekStats].sort((a, b) => b.avgOmzet - a.avgOmzet)[0];
+    return [...dayOfWeekStats].sort((a, b) => b.totalOmzet - a.totalOmzet)[0];
   }, [dayOfWeekStats]);
 
   // Max omzet untuk scaling tinggi batang grafik
@@ -929,25 +929,25 @@ export const MonthlyRecapView: React.FC<MonthlyRecapViewProps> = ({ data }) => {
         )}
       </Card>
 
-      {/* 📅 Analisis Pola Mingguan (Hari Terlaris dalam Seminggu) */}
+      {/* 📅 Analisis Pola Mingguan (Akumulasi Omzet per Hari dalam Seminggu) */}
       <Card className="p-3.5 border border-slate-200/80 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500" />
             <h3 className="text-xs font-bold text-slate-800">Pola Penjualan per Hari (Senin - Minggu)</h3>
           </div>
-          {maxAvgDay && maxAvgDay.avgOmzet > 0 && (
+          {maxTotalDay && maxTotalDay.totalOmzet > 0 && (
             <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-              Teramai: {maxAvgDay.dayName}
+              Teramai: {maxTotalDay.dayName}
             </span>
           )}
         </div>
 
         <div className="space-y-2">
           {dayOfWeekStats.map(stat => {
-            const isTop = maxAvgDay && maxAvgDay.dayName === stat.dayName && stat.avgOmzet > 0;
-            const maxVal = maxAvgDay?.avgOmzet || 1;
-            const barWidth = maxVal > 0 ? Math.max(6, Math.round((stat.avgOmzet / maxVal) * 100)) : 0;
+            const isTop = maxTotalDay && maxTotalDay.dayName === stat.dayName && stat.totalOmzet > 0;
+            const maxVal = maxTotalDay?.totalOmzet || 1;
+            const barWidth = maxVal > 0 ? Math.max(6, Math.round((stat.totalOmzet / maxVal) * 100)) : 0;
 
             return (
               <div key={stat.dayName} className="space-y-1">
@@ -956,7 +956,7 @@ export const MonthlyRecapView: React.FC<MonthlyRecapViewProps> = ({ data }) => {
                     {stat.dayName} {isTop && '👑'}
                   </span>
                   <span className="text-slate-700 font-bold">
-                    {formatRupiah(stat.avgOmzet)}{' '}
+                    {formatRupiah(stat.totalOmzet)}{' '}
                     <span className="text-[9px] text-slate-400 font-normal">({stat.count}x buka)</span>
                   </span>
                 </div>

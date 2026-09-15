@@ -9,7 +9,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   id: 'default',
   effective_from: '2026-09-01',
   ambang_profit_ramai: 200000,
-  cap_gaji_ramai: 100000,
+  rasio_gaji_ramai: 0.50,
   rasio_gaji_sepi: 0.50,
   rasio_hidup_ramai: 0.50,
   rasio_tabungan_pribadi_ramai: 0.50,
@@ -58,7 +58,7 @@ export function useDailyRecap() {
 
       // Load custom settings or fall back to defaults
       const ambangRamai = parseFloat(localStorage.getItem('cfg_ambang_ramai') || '200000');
-      const capGaji = parseFloat(localStorage.getItem('cfg_cap_gaji') || '100000');
+      const rasioGajiRamai = (parseFloat(localStorage.getItem('cfg_rasio_gaji_ramai') || '50')) / 100;
       const rasioGajiSepi = (parseFloat(localStorage.getItem('cfg_rasio_gaji_sepi') || '50')) / 100;
       const rasioHidupSepi = (parseFloat(localStorage.getItem('cfg_rasio_hidup_sepi') || '70')) / 100;
       const rasioHidupRamai = (parseFloat(localStorage.getItem('cfg_rasio_hidup_ramai') || '50')) / 100;
@@ -66,7 +66,7 @@ export function useDailyRecap() {
       const activeSettings: SystemSettings = {
         ...DEFAULT_SETTINGS,
         ambang_profit_ramai: ambangRamai,
-        cap_gaji_ramai: capGaji,
+        rasio_gaji_ramai: rasioGajiRamai,
         rasio_gaji_sepi: rasioGajiSepi,
         rasio_hidup_sepi: rasioHidupSepi,
         rasio_tabungan_pribadi_sepi: 1 - rasioHidupSepi,

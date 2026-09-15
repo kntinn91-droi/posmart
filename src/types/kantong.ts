@@ -6,7 +6,8 @@ export interface KantongCalculationInput {
   total_belanja_bahan: number;
   pengeluaran_pribadi_riil: number;
   ambang_profit_ramai: number;
-  cap_gaji_ramai: number;
+  rasio_gaji_ramai: number;
+  cap_gaji_ramai?: number;
   rasio_gaji_sepi: number;
   rasio_hidup_ramai: number;
   rasio_tabungan_pribadi_ramai: number;

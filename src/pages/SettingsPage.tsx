@@ -7,7 +7,7 @@ import { Sliders, Database, ShieldCheck, Save, CheckCircle2 } from 'lucide-react
 
 export const SettingsPage: React.FC = () => {
   const [ambangRamai, setAmbangRamai] = useState(() => localStorage.getItem('cfg_ambang_ramai') || '200000');
-  const [capGajiRamai, setCapGajiRamai] = useState(() => localStorage.getItem('cfg_cap_gaji') || '100000');
+  const [rasioGajiRamai, setRasioGajiRamai] = useState(() => localStorage.getItem('cfg_rasio_gaji_ramai') || '50');
   const [rasioGajiSepi, setRasioGajiSepi] = useState(() => localStorage.getItem('cfg_rasio_gaji_sepi') || '50');
   const [rasioHidupSepi, setRasioHidupSepi] = useState(() => localStorage.getItem('cfg_rasio_hidup_sepi') || '70');
   const [rasioHidupRamai, setRasioHidupRamai] = useState(() => localStorage.getItem('cfg_rasio_hidup_ramai') || '50');
@@ -21,7 +21,7 @@ export const SettingsPage: React.FC = () => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem('cfg_ambang_ramai', ambangRamai);
-    localStorage.setItem('cfg_cap_gaji', capGajiRamai);
+    localStorage.setItem('cfg_rasio_gaji_ramai', rasioGajiRamai);
     localStorage.setItem('cfg_rasio_gaji_sepi', rasioGajiSepi);
     localStorage.setItem('cfg_rasio_hidup_sepi', rasioHidupSepi);
     localStorage.setItem('cfg_rasio_hidup_ramai', rasioHidupRamai);
@@ -74,40 +74,60 @@ export const SettingsPage: React.FC = () => {
             <h4 className="text-xs font-bold text-slate-800">Parameter Sistem 3 Kantong</h4>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              label="Ambang Mode Ramai (Rp)"
-              type="number"
-              value={ambangRamai}
-              onChange={(e) => setAmbangRamai(e.target.value)}
-            />
-            <Input
-              label="Maksimal Cap Gaji (Rp)"
-              type="number"
-              value={capGajiRamai}
-              onChange={(e) => setCapGajiRamai(e.target.value)}
-            />
-          </div>
+          <div className="space-y-3">
+            <div>
+              <Input
+                label="Ambang Profit Mode Ramai (Rp)"
+                type="number"
+                value={ambangRamai}
+                onChange={(e) => setAmbangRamai(e.target.value)}
+              />
+              <span className="text-[10px] text-slate-400 block mt-1">
+                Batas profit kotor harian: ≥ nilai ini berstatus <strong>RAMAI</strong>, di bawahnya <strong>SEPI</strong>.
+              </span>
+            </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <Input
-              label="Rasio Gaji Sepi (%)"
-              type="number"
-              value={rasioGajiSepi}
-              onChange={(e) => setRasioGajiSepi(e.target.value)}
-            />
-            <Input
-              label="Jatah Hidup Sepi (%)"
-              type="number"
-              value={rasioHidupSepi}
-              onChange={(e) => setRasioHidupSepi(e.target.value)}
-            />
-            <Input
-              label="Jatah Hidup Ramai (%)"
-              type="number"
-              value={rasioHidupRamai}
-              onChange={(e) => setRasioHidupRamai(e.target.value)}
-            />
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+              <div>
+                <Input
+                  label="Rasio Gaji Ramai (%)"
+                  type="number"
+                  value={rasioGajiRamai}
+                  onChange={(e) => setRasioGajiRamai(e.target.value)}
+                />
+                <span className="text-[9px] text-slate-400 block mt-0.5">% profit kotor untuk gaji saat Ramai</span>
+              </div>
+              <div>
+                <Input
+                  label="Rasio Gaji Sepi (%)"
+                  type="number"
+                  value={rasioGajiSepi}
+                  onChange={(e) => setRasioGajiSepi(e.target.value)}
+                />
+                <span className="text-[9px] text-slate-400 block mt-0.5">% profit kotor untuk gaji saat Sepi</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+              <div>
+                <Input
+                  label="Jatah Hidup Ramai (%)"
+                  type="number"
+                  value={rasioHidupRamai}
+                  onChange={(e) => setRasioHidupRamai(e.target.value)}
+                />
+                <span className="text-[9px] text-slate-400 block mt-0.5">% gaji untuk jatah hidup saat Ramai</span>
+              </div>
+              <div>
+                <Input
+                  label="Jatah Hidup Sepi (%)"
+                  type="number"
+                  value={rasioHidupSepi}
+                  onChange={(e) => setRasioHidupSepi(e.target.value)}
+                />
+                <span className="text-[9px] text-slate-400 block mt-0.5">% gaji untuk jatah hidup saat Sepi</span>
+              </div>
+            </div>
           </div>
         </Card>
 

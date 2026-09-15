@@ -87,7 +87,8 @@ export interface SystemSettings {
   id: string;
   effective_from: string; // YYYY-MM-DD
   ambang_profit_ramai: number;
-  cap_gaji_ramai: number;
+  rasio_gaji_ramai: number;
+  cap_gaji_ramai?: number;
   rasio_gaji_sepi: number;
   rasio_hidup_ramai: number;
   rasio_tabungan_pribadi_ramai: number;

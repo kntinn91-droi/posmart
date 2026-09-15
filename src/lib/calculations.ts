@@ -12,7 +12,7 @@ export function calculateKantong(input: KantongCalculationInput): KantongCalcula
     total_belanja_bahan,
     pengeluaran_pribadi_riil,
     ambang_profit_ramai,
-    cap_gaji_ramai,
+    rasio_gaji_ramai,
     rasio_gaji_sepi,
     rasio_hidup_ramai,
     rasio_tabungan_pribadi_ramai,
@@ -29,12 +29,12 @@ export function calculateKantong(input: KantongCalculationInput): KantongCalcula
   // Langkah 3: Tentukan Mode
   const mode: ModeType = profit_kotor < ambang_profit_ramai ? 'SEPI' : 'RAMAI';
 
-  // Langkah 4: Kantong 2 - Gaji Pemilik
+  // Langkah 4: Kantong 2 - Gaji Pemilik (tanpa batas maksimal/cap, berbasis persentase rasio)
   let kantong2_gaji_pemilik = 0;
   if (mode === 'SEPI') {
     kantong2_gaji_pemilik = profit_kotor * rasio_gaji_sepi;
   } else {
-    kantong2_gaji_pemilik = Math.min(cap_gaji_ramai, profit_kotor);
+    kantong2_gaji_pemilik = profit_kotor * (rasio_gaji_ramai ?? 0.5);
   }
 
   // Langkah 5: Kantong 3 - Tabungan Usaha
